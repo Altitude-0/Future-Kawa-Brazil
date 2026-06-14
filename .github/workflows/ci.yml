@@ -9,9 +9,9 @@ on:
       - main
 
 jobs:
-  build-and-package:
+  build-and-verify:
     runs-on: ubuntu-latest
-    name: Build Instance
+    name: Build & Verify Instance
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,15 +33,7 @@ jobs:
       - name: Build Projects
         run: mvn clean package -DskipTests
 
-  docker-check:
-    needs: build-and-package
-    runs-on: ubuntu-latest
-    name: Verify Docker Builds
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Verify that the Dockerfiles can build successfully
+      # Verify that the Dockerfiles can build successfully with the newly created JARs
       - name: Build Core Image
         run: docker build -f fk-brasil-core/Dockerfile ./fk-brasil-core
 
@@ -52,14 +44,14 @@ jobs:
         run: docker build -f fk-brasil-alerting/Dockerfile ./fk-brasil-alerting
 
   notify-discord:
-    needs: [build-and-package, docker-check]
+    needs: [build-and-verify]
     runs-on: ubuntu-latest
     name: Notify Discord on PR
     if: github.event_name == 'pull_request' && success()
     steps:
       - name: Send Discord notification
         run: |
-          curl -X POST ${{ secrets.DISCORD_WEBHOOK_URL }} \
+          curl -X POST ${{ secrets.DISCORD_WEBHOOK }} \
             -H 'Content-Type: application/json' \
             -d '{
               "content": "🇧🇷 **New Pull Request for FK-Brasil validated!**",
