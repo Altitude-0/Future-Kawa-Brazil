@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # Base de données spécifique au Brésil
+  db-brasil:
+    image: postgres:15-alpine
+    container_name: fk-brasil-db
+    environment:
+      - POSTGRES_DB=futurekawa_br
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5433:5432"
+
+  # RabbitMQ partagé pour l'instance
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: fk-brasil-rabbitmq
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+
+  # Service Core Brésil
+  core-brasil:
+    build: ./fk-brasil-core
+    container_name: fk-brasil-core
+    depends_on:
+      - db-brasil
+      - rabbitmq
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db-brasil:5432/futurekawa_br
+      - DB_USER=postgres
+      - DB_PASS=password
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    ports:
+      - "8083:8080"
+
+  # Service MQTT Brésil
+  mqtt-brasil:
+    build: ./fk-brasil-mqtt
+    container_name: fk-brasil-mqtt
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - FUTUREKAWA_MQTT_BROKER_URL=tcp://mosquitto:1883
+    depends_on:
+      - rabbitmq
+      - core-brasil
+
+  # Service Alerting Brésil
+  alerting-brasil:
+    build: ./fk-brasil-alerting
+    container_name: fk-brasil-alerting
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - rabbitmq
+      - core-brasil
+
+  # Broker Mosquitto pour les capteurs locaux
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: fk-brasil-mosquitto
+    ports:
+      - "1884:1883"
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf

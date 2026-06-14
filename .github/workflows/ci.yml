@@ -1,0 +1,92 @@
+name: CI - FutureKawa Brasil
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+    name: Build Instance
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+          cache: maven
+
+      # Configure Maven to read from GitHub Packages using the standard GITHUB_TOKEN
+      - name: Configure Maven for GitHub Packages
+        run: |
+          mkdir -p ~/.m2
+          echo "<settings><servers><server><id>github</id><username>${{ github.actor }}</username><password>${{ secrets.GITHUB_TOKEN }}</password></server></servers></settings>" > ~/.m2/settings.xml
+
+      # Compile and package without running tests (since the core is already tested)
+      - name: Build Projects
+        run: mvn clean package -DskipTests
+
+  docker-check:
+    needs: build-and-package
+    runs-on: ubuntu-latest
+    name: Verify Docker Builds
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Verify that the Dockerfiles can build successfully
+      - name: Build Core Image
+        run: docker build -f fk-brasil-core/Dockerfile ./fk-brasil-core
+
+      - name: Build MQTT Image
+        run: docker build -f fk-brasil-mqtt/Dockerfile ./fk-brasil-mqtt
+
+      - name: Build Alerting Image
+        run: docker build -f fk-brasil-alerting/Dockerfile ./fk-brasil-alerting
+
+  notify-discord:
+    needs: [build-and-package, docker-check]
+    runs-on: ubuntu-latest
+    name: Notify Discord on PR
+    if: github.event_name == 'pull_request' && success()
+    steps:
+      - name: Send Discord notification
+        run: |
+          curl -X POST ${{ secrets.DISCORD_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "content": "🇧🇷 **New Pull Request for FK-Brasil validated!**",
+              "embeds": [{
+                "title": "Integration Build Successful",
+                "description": "The CI has successfully built the Brasil instance for PR #${{ github.event.pull_request.number }}.",
+                "color": 3447003,
+                "fields": [
+                  {
+                    "name": "PR Title",
+                    "value": "${{ github.event.pull_request.title }}",
+                    "inline": false
+                  },
+                  {
+                    "name": "Author",
+                    "value": "${{ github.actor }}",
+                    "inline": true
+                  },
+                  {
+                    "name": "Link",
+                    "value": "[View Pull Request](${{ github.event.pull_request.html_url }})",
+                    "inline": true
+                  }
+                ],
+                "footer": {
+                  "text": "GitHub Actions - fk-brasil"
+                },
+                "timestamp": "'\''$(date -u +%Y-%m-%dT%H:%M:%SZ)'\''"
+              }]
+            }'
