@@ -52,9 +52,18 @@ services:
     container_name: fk-brasil-alerting
     environment:
       - SPRING_RABBITMQ_HOST=rabbitmq
+      - MAIL_HOST=mailhog
+      - MAIL_PORT=1025
     depends_on:
       - rabbitmq
       - core-brasil
+
+  # Serveur Mail pour les tests
+  mailhog:
+    image: mailhog/mailhog
+    container_name: fk-brasil-mailhog
+    ports:
+      - "8026:8025"
 
   # Broker Mosquitto pour les capteurs locaux
   mosquitto:
