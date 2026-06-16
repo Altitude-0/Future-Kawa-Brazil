@@ -79,6 +79,6 @@ jobs:
                 "footer": {
                   "text": "GitHub Actions - fk-brasil"
                 },
-                "timestamp": "'\''$(date -u +%Y-%m-%dT%H:%M:%SZ)'\''"
+                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
               }]
             }'
