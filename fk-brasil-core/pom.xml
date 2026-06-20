@@ -8,12 +8,16 @@
     <parent>
         <groupId>com.futurekawa.brasil</groupId>
         <artifactId>fk-brasil-parent</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.1</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>fk-brasil-core</artifactId>
     <name>FutureKawa Brasil Core</name>
+
+    <properties>
+        <spring-boot.version>3.5.15</spring-boot.version>
+    </properties>
 
     <dependencies>
         <dependency>
